@@ -112,7 +112,7 @@ def dbconnect():
         user=DBuser,
         password=DBpwd,
 	)
-	connection.autocommit = True
+	connection.autocommit = False
 	return connection
 
 # create the target table 
