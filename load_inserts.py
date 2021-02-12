@@ -112,7 +112,7 @@ def dbconnect():
         user=DBuser,
         password=DBpwd,
 	)
-	connection.autocommit = False
+	connection.autocommit = True
 	return connection
 
 # create the target table 
@@ -122,7 +122,8 @@ def createTable(conn):
 	with conn.cursor() as cursor:
 		cursor.execute(f"""
         	DROP TABLE IF EXISTS {TableName};
-        	CREATE TABLE {TableName} (
+        	temp_buffers(256);
+        	CREATE TEMPORARY TABLE {TableName} (
             	Year                INTEGER,
               CensusTract         NUMERIC,
             	State               TEXT,
@@ -162,6 +163,8 @@ def createTable(conn):
             	FamilyWork          DECIMAL,
             	Unemployment        DECIMAL
          	);	
+         	ALTER TABLE {TableName} ADD PRIMARY KEY (Year, CensusTract);
+         	CREATE INDEX idx_{TableName}_State ON {TableName}(State);
     	""")
 
 		print(f"Created {TableName}")
