@@ -7,7 +7,7 @@ import argparse
 import re
 import csv
 import psycopg2.extras
-from itertools import filterfalse
+import io
 
 DBname = "dataengdb"
 DBuser = "yokesh"
@@ -182,45 +182,7 @@ def load_batch(conn, icmdlist):
             **cmd,
         } for cmd in icmdlist]
 	
-		for item in list(all_cmds):
-			if(item['CensusTract'] == '' or
-				item['State'] == '' or
-				item['County'] == '' or
-				item['TotalPop'] == '' or
-				item['Men'] == '' or
-				item['Women'] == '' or
-				item['Hispanic'] == '' or
-				item['White'] == '' or
-				item['Black'] == '' or
-				item['Native'] == '' or
-				item['Asian'] == '' or
-				item['Pacific'] == '' or
-				item['Citizen'] == '' or
-				item['Income'] == '' or
-				item['IncomeErr'] == '' or
-				item['IncomePerCap'] == '' or
-				item['IncomePerCapErr'] == '' or
-				item['Poverty'] == '' or
-				item['ChildPoverty'] == '' or
-				item['Professional'] == '' or
-				item['Service'] == '' or
-				item['Office'] == '' or
-				item['Construction'] == '' or
-				item['Production'] == '' or
-				item['Drive'] == '' or
-				item['Carpool'] == '' or
-				item['Transit'] == '' or
-				item['Walk'] == '' or
-				item['OtherTransp'] == '' or
-				item['WorkAtHome'] == '' or
-				item['MeanCommute'] == '' or
-				item['Employed'] == '' or
-				item['PrivateWork'] == '' or
-				item['PublicWork'] == '' or
-				item['SelfEmployed'] == '' or
-				item['FamilyWork'] == '' or
-				item['Unemployment'] == ''):
-				all_cmds.remove(item)
+		all_cmds = clean_data(all_cmds)
 
 		print(f"Only {len(all_cmds)} rows are valid")
 
@@ -271,6 +233,109 @@ def load_batch(conn, icmdlist):
 		print(f'Finished Loading. Elapsed Time: {elapsed:0.4} seconds')
 
 
+def clean_csv_value(value) -> str:
+    if value is None:
+        return r'\N'
+    return str(value).replace('\n', '\\n')
+
+def clean_data(all_cmds):
+	for item in list(all_cmds):
+		if(item['CensusTract'] == '' or
+			item['State'] == '' or
+			item['County'] == '' or
+			item['TotalPop'] == '' or
+			item['Men'] == '' or
+			item['Women'] == '' or
+			item['Hispanic'] == '' or
+			item['White'] == '' or
+			item['Black'] == '' or
+			item['Native'] == '' or
+			item['Asian'] == '' or
+			item['Pacific'] == '' or
+			item['Citizen'] == '' or
+			item['Income'] == '' or
+			item['IncomeErr'] == '' or
+			item['IncomePerCap'] == '' or
+			item['IncomePerCapErr'] == '' or
+			item['Poverty'] == '' or
+			item['ChildPoverty'] == '' or
+			item['Professional'] == '' or
+			item['Service'] == '' or
+			item['Office'] == '' or
+			item['Construction'] == '' or
+			item['Production'] == '' or
+			item['Drive'] == '' or
+			item['Carpool'] == '' or
+			item['Transit'] == '' or
+			item['Walk'] == '' or
+			item['OtherTransp'] == '' or
+			item['WorkAtHome'] == '' or
+			item['MeanCommute'] == '' or
+			item['Employed'] == '' or
+			item['PrivateWork'] == '' or
+			item['PublicWork'] == '' or
+			item['SelfEmployed'] == '' or
+			item['FamilyWork'] == '' or
+			item['Unemployment'] == ''):
+			all_cmds.remove(item)
+	return all_cmds		
+	
+
+def copy_stringio(conn, icmdlist) -> None:
+    
+	with conn.cursor() as cursor:
+		print(f"Loading {len(icmdlist)} rows")
+		start = time.perf_counter()
+		csv_file_like_object = io.StringIO()
+		icmdlist = clean_data(icmdlist)
+		for item in icmdlist:
+			csv_file_like_object.write('|'.join(map(clean_csv_value, (
+				Year,
+				item['CensusTract'],
+				item['State'],
+				item['County'],
+				item['TotalPop'],
+				item['Men'],
+				item['Women'],
+				item['Hispanic'],
+				item['White'],
+				item['Black'],
+				item['Native'],
+				item['Asian'],
+				item['Pacific'],
+				item['Citizen'],
+				item['Income'],
+				item['IncomeErr'],
+				item['IncomePerCap'],
+				item['IncomePerCapErr'],
+				item['Poverty'],
+				item['ChildPoverty'],
+				item['Professional'],
+				item['Service'],
+				item['Office'],
+				item['Construction'],
+				item['Production'],
+				item['Drive'],
+				item['Carpool'],
+				item['Transit'],
+				item['Walk'],
+				item['OtherTransp'],
+				item['WorkAtHome'],
+				item['MeanCommute'],
+				item['Employed'],
+				item['PrivateWork'],
+				item['PublicWork'],
+				item['SelfEmployed'],
+				item['FamilyWork'],
+				item['Unemployment']
+			))) + '\n')
+		csv_file_like_object.seek(0)
+		cursor.copy_from(csv_file_like_object, 'CensusData', sep='|')
+
+		elapsed = time.perf_counter() - start
+		print(f'Finished Loading. Elapsed Time: {elapsed:0.4} seconds')
+
+
 def load(conn, icmdlist):
 
 	with conn.cursor() as cursor:
@@ -295,7 +360,8 @@ def main():
     	createTable(conn)
 
     # load(conn, cmdlist)
-    load_batch(conn, rlis)
+    # load_batch(conn, rlis)
+    copy_stringio(conn, rlis)
 
 
 if __name__ == "__main__":
