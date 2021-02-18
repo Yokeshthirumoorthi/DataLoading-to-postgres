@@ -6,6 +6,8 @@ import psycopg2
 import argparse
 import re
 import csv
+import psycopg2.extras
+from itertools import filterfalse
 
 DBname = "dataengdb"
 DBuser = "yokesh"
@@ -169,6 +171,106 @@ def createTable(conn):
 
 		print(f"Created {TableName}")
 
+def load_batch(conn, icmdlist):
+
+	with conn.cursor() as cursor:
+		print(f"Loading {len(icmdlist)} rows")
+		start = time.perf_counter()
+
+		all_cmds = [{
+            'Year': Year,
+            **cmd,
+        } for cmd in icmdlist]
+	
+		for item in list(all_cmds):
+			if(item['CensusTract'] == '' or
+				item['State'] == '' or
+				item['County'] == '' or
+				item['TotalPop'] == '' or
+				item['Men'] == '' or
+				item['Women'] == '' or
+				item['Hispanic'] == '' or
+				item['White'] == '' or
+				item['Black'] == '' or
+				item['Native'] == '' or
+				item['Asian'] == '' or
+				item['Pacific'] == '' or
+				item['Citizen'] == '' or
+				item['Income'] == '' or
+				item['IncomeErr'] == '' or
+				item['IncomePerCap'] == '' or
+				item['IncomePerCapErr'] == '' or
+				item['Poverty'] == '' or
+				item['ChildPoverty'] == '' or
+				item['Professional'] == '' or
+				item['Service'] == '' or
+				item['Office'] == '' or
+				item['Construction'] == '' or
+				item['Production'] == '' or
+				item['Drive'] == '' or
+				item['Carpool'] == '' or
+				item['Transit'] == '' or
+				item['Walk'] == '' or
+				item['OtherTransp'] == '' or
+				item['WorkAtHome'] == '' or
+				item['MeanCommute'] == '' or
+				item['Employed'] == '' or
+				item['PrivateWork'] == '' or
+				item['PublicWork'] == '' or
+				item['SelfEmployed'] == '' or
+				item['FamilyWork'] == '' or
+				item['Unemployment'] == ''):
+				all_cmds.remove(item)
+
+		print(f"Only {len(all_cmds)} rows are valid")
+
+		psycopg2.extras.execute_batch(cursor, """
+            INSERT INTO CensusData VALUES (
+				%(Year)s,
+				%(CensusTract)s,
+				%(State)s,
+				%(County)s,
+				%(TotalPop)s,
+				%(Men)s,
+				%(Women)s,
+				%(Hispanic)s,
+				%(White)s,
+				%(Black)s,
+				%(Native)s,
+				%(Asian)s,
+				%(Pacific)s,
+				%(Citizen)s,
+				%(Income)s,
+				%(IncomeErr)s,
+				%(IncomePerCap)s,
+				%(IncomePerCapErr)s,
+				%(Poverty)s,
+				%(ChildPoverty)s,
+				%(Professional)s,
+				%(Service)s,
+				%(Office)s,
+				%(Construction)s,
+				%(Production)s,
+				%(Drive)s,
+				%(Carpool)s,
+				%(Transit)s,
+				%(Walk)s,
+				%(OtherTransp)s,
+				%(WorkAtHome)s,
+				%(MeanCommute)s,
+				%(Employed)s,
+				%(PrivateWork)s,
+				%(PublicWork)s,
+				%(SelfEmployed)s,
+				%(FamilyWork)s,
+				%(Unemployment)s
+            );
+        """, all_cmds)	
+
+		elapsed = time.perf_counter() - start
+		print(f'Finished Loading. Elapsed Time: {elapsed:0.4} seconds')
+
+
 def load(conn, icmdlist):
 
 	with conn.cursor() as cursor:
@@ -187,12 +289,13 @@ def main():
     initialize()
     conn = dbconnect()
     rlis = readdata(Datafile)
-    cmdlist = getSQLcmnds(rlis)
+    # cmdlist = getSQLcmnds(rlis)
 
     if CreateDB:
     	createTable(conn)
 
-    load(conn, cmdlist)
+    # load(conn, cmdlist)
+    load_batch(conn, rlis)
 
 
 if __name__ == "__main__":
